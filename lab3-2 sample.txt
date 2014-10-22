@@ -14,14 +14,27 @@ init:   MOV     #SFE(CSTACK), SP        ; set up stack
 
 main:   NOP                             ; main program
         MOV.W   #WDTPW+WDTHOLD,&WDTCTL  ; Stop watchdog timer
-        
-        mov.w #-32 , &MPYS 
-        mov.w #20  , &OP2
-        mov.w #-17 , &MACS
-        mov.w #5   , &OP2        
-        
-        JMP $                           ; jump to current location '$'
-                                        ; (endless loop)
-        END
+        mov.b   #00000000b , P1DIR
+        mov.b   #00000000b , P1OUT
+	mov.b   #00000010b , P2REN
+        mov.b   #00000010b , P2OUT
 
-		
+;===============偵測按鍵===============
+while:  mov.b &P2IN , R10
+        ////////////
+        ////////////
+        jmp   while
+;======================================
+        
+;==============作亮滅LED動作===========
+do:     xor.b   #00000001b , &P1OUT
+        jmp   delay
+        
+;======================================       
+      
+;=============Delay區間================      
+delay:
+      //fill the function frome lab3.1
+;======================================
+        ;jmp ////
+        END

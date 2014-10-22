@@ -1,0 +1,9 @@
+        MOV #1, R8                       ; k = 1      
+        MOV #1, R5                       ; i = 1
+FOR: CMP #11, R5
+        JZ OUTFOR
+        RLA R8                          ; k *= 2
+        ADD #1, R5                      ; i += 1
+        JMP FOR
+       
+OUTFOR:      

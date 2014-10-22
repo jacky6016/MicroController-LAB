@@ -11,17 +11,39 @@
         RSEG    CODE                    ; place program in 'CODE' segment
 
 init:   MOV     #SFE(CSTACK), SP        ; set up stack
-
+;===============¥Dµ{¦¡=======================================
 main:   NOP                             ; main program
         MOV.W   #WDTPW+WDTHOLD,&WDTCTL  ; Stop watchdog timer
+        mov.b  #00000001b , P1DIR
+        mov.b  #10000000b , P4DIR
         
-        mov.w #-32 , &MPYS 
-        mov.w #20  , &OP2
-        mov.w #-17 , &MACS
-        mov.w #5   , &OP2        
-        
-        JMP $                           ; jump to current location '$'
-                                        ; (endless loop)
-        END
 
-		
+        ;LED1µo«G   
+
+;===============Delay1°j°é==============
+
+//fill the function segment
+        
+;=======================================         
+
+
+	;D1-LEDº¶·À and D2-LEDµo«G
+                                                   
+
+;==============Delay2°j°é===============
+
+//fill the function segment
+
+;=======================================        
+
+
+        ;D2-LEDº¶·À
+
+
+
+
+       jmp main
+               
+        
+;=====================================================================        
+        END
