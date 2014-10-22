@@ -1,0 +1,71 @@
+#include "msp430.h"                     ; #define controlled include file
+
+;===============Delay LIBRARY==============
+        extern  LIBRARY_DELAY
+        NAME    main                    ; module name
+
+        PUBLIC  main                    ; make the main label vissible
+                                        ; outside this module
+        ORG     0FFFEh
+        DC16    init                    ; set reset vector to 'init' label
+
+        RSEG    CSTACK                  ; pre-declaration of segment
+        RSEG    CODE                    ; place program in 'CODE' segment
+
+;===============Delay MACRO==============
+MACRODELAY MACRO
+LOCAL Delay1,Delay2
+        mov.w #1400,R5      ; 2 cycle
+Delay1: sub #1 ,R5          ; 1 cycle
+        mov.w #350,R6       ; 2 cycle
+Delay2: sub #1 ,R6          ; 1 cycle     
+        cmp #0,R6           ; 1 cycle
+        jnz Delay2          ; 2 cycle   
+        cmp #0,R5           ; 1 cycle
+        jnz Delay1          ; 2 cycle
+  ENDM 
+        
+init:   MOV     #SFE(CSTACK), SP        ; set up stack
+
+main:   NOP                             ; main program
+        MOV.W   #WDTPW+WDTHOLD,&WDTCTL  ; Stop watchdog timer
+
+start:
+        mov.b  #00000001b , P1DIR       ; LED1 (P1.0)
+        mov.b  #10000000b , P4DIR       ; LED2 (P4.7)
+        mov.b  #00100000b , P6DIR       ; LED3 (P6.5)
+        mov.b  #00000000b , P1SEL
+        mov.b  #00000000b , P4SEL
+        mov.b  #00000000b , P6SEL
+;===============Stage 1  D1亮==============
+        mov.b  #00000001b , P1OUT       ; LED1亮
+        mov.b  #00000000b , P4OUT       ; LED2暗
+        mov.b  #00000000b , P6OUT       ; LED3暗
+        call   #SUBDELAY
+;===============Stage 2  D2亮==============       
+        mov.b  #00000000b , P1OUT       ; LED1暗
+        mov.b  #10000000b , P4OUT       ; LED2亮
+        mov.b  #00000000b , P6OUT       ; LED3暗
+        MACRODELAY
+;===============Stage 3  D3亮==============
+        mov.b  #00000000b , P1OUT       ; LED1暗
+        mov.b  #00000000b , P4OUT       ; LED2暗        
+        mov.b  #00100000b , P6OUT       ; LED3亮
+        call   #LIBRARY_DELAY
+        
+        jmp start
+;===============Delay Subroutine==============
+SUBDELAY:
+        mov.w #1400,R5      ; 2 cycle
+Delay1: sub #1 ,R5          ; 1 cycle
+        mov.w #350,R6       ; 2 cycle
+Delay2: sub #1 ,R6          ; 1 cycle     
+        cmp #0,R6           ; 1 cycle
+        jnz Delay2          ; 2 cycle   
+        cmp #0,R5           ; 1 cycle
+        jnz Delay1          ; 2 cycle
+        ret
+        
+        JMP $                           ; jump to current location '$'
+                                        ; (endless loop)
+        END

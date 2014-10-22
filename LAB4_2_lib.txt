@@ -1,0 +1,20 @@
+;===============Delay LIBRARY==============
+#include "msp430.h"
+
+		PUBLIC LIBRARY_DELAY
+        
+        RSEG   CODE
+        
+LIBRARY_DELAY: 
+        mov.w #1400,R5      ; 2 cycle
+
+Delay1: sub #1 ,R5          ; 1 cycle
+		mov.w #35,R6        ; 2 cycle
+
+Delay2: sub #1 ,R6          ; 1 cycle     
+        cmp #0,R6           ; 1 cycle
+        jnz Delay2          ; 2 cycle   
+        cmp #0,R5           ; 1 cycle
+        jnz Delay1          ; 2 cycle
+        ret
+END
