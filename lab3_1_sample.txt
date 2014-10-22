@@ -22,7 +22,7 @@ main:   NOP                             ; main program
 
 ;===============Delay1°j°é==============
 
-//fill the function segment
+	;fill the function segment
         
 ;=======================================         
 
@@ -32,18 +32,11 @@ main:   NOP                             ; main program
 
 ;==============Delay2°j°é===============
 
-//fill the function segment
+	;fill the function segment
 
 ;=======================================        
-
-
-        ;D2-LEDº¶·À
-
-
-
-
-       jmp main
-               
-        
+    ;D2-LEDº¶·À
+    jmp main
+                    
 ;=====================================================================        
         END

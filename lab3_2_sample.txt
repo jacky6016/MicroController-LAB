@@ -21,8 +21,7 @@ main:   NOP                             ; main program
 
 ;===============°»´ú«öÁä===============
 while:  mov.b &P2IN , R10
-        ////////////
-        ////////////
+ 
         jmp   while
 ;======================================
         
@@ -34,7 +33,7 @@ do:     xor.b   #00000001b , &P1OUT
       
 ;=============Delay°Ï¶¡================      
 delay:
-      //fill the function frome lab3.1
+		;fill the function frome lab3.1
 ;======================================
-        ;jmp ////
-        END
+		;jmp
+		END
