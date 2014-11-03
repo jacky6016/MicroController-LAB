@@ -1,0 +1,91 @@
+#include "msp430.h"                     ; #define controlled include file
+
+        NAME    main                    ; module name
+
+        PUBLIC  main                    ; make the main label vissible
+                                        ; outside this module
+        ORG     0FFFEh
+        DC16    init                    ; set reset vector to 'init' label
+;==========================Interrupt Service Vectors====================   
+        ORG     0FFDEh                  
+        DW      P1_ISR
+
+        ORG     0FFD4h
+        DW      P2_ISR
+;========================================================================          
+        RSEG    CSTACK                  ; pre-declaration of segment
+        RSEG    CODE                    ; place program in 'CODE' segment
+
+init:   MOV     #SFE(CSTACK), SP        ; set up stack
+
+main:   NOP                             ; main program
+        MOV.W   #WDTPW+WDTHOLD,&WDTCTL  ; Stop watchdog timer
+
+;===========================Set LED1, Button1============================
+        MOV.B   #00000000b, &P1SEL      ; Choose I/O function, not peripheral module function 
+        MOV.B   #00000001b, &P1DIR      ; 0: INPUT, I: OUTPUT
+        MOV.B   #00000000b, &P1OUT      ;
+        MOV.B   #00000010b, &P1REN      ; Enable pull up/down register
+        MOV.B   #00000010b, &P1OUT      ;
+        MOV.B   #00000010b, &P1IES      ; High-to-low transition        
+;===============================Set LED2=================================        
+        MOV.B   #00000000b, &P4SEL      ; Choose I/O function, not peripheral module function 
+        MOV.B   #10000000b, &P4DIR      ; 0: INPUT, I: OUTPUT
+        MOV.B   #00000000b, &P4OUT      ;
+;==============================Set Button2================================        
+        MOV.B   #00000000b, &P2SEL      ; Choose I/O function, not peripheral module function 
+        MOV.B   #00000000b, &P2DIR      ; 0: INPUT, I: OUTPUT
+        MOV.B   #00000010b, &P2REN      ; Enable pull up/down register(for accuracy)
+        MOV.B   #00000010b, &P2OUT      ; must come after REN
+        MOV.B   #00000010b, &P2IES      ; High-to-low transition
+;============================Enable interrupt==============================        
+        MOV.B   #00000010b, &P1IE       ; Enable P1.1 interrupt       
+        MOV.B   #00000010b, &P2IE       ; Enable P2.1 interrupt
+;==========================Clear Interrupt Flag============================  
+        BIC.B   #00000010b, &P1IFG      ; Clean P1 interrupt flag
+        BIC.B   #00000010b, &P2IFG      ; Clean P1 interrupt flag
+        
+        EINT                            ; enable interrupt
+        
+        
+Loop:             
+        JMP     Loop                    ; jump to current location '$'
+    
+
+
+;================================ISR code==================================
+P1_ISR:
+        BIC.B   #00000010b, &P1IE       ; Diasble P1.1(self) interrupt
+        
+        XOR.B   #10000000b, &P4OUT      ; On/off(toggle) LED2
+        call    #SUBDELAY
+        XOR.B   #10000000b, &P4OUT      ; On/off(toggle) LED2
+        
+        BIC.B   #00000010b, &P1IFG      ; Clean P1 interrupt flag
+        BIS.B   #00000010b, &P1IE       ; Enable P1.1 interrupt
+        RETI     
+        
+P2_ISR:
+        BIC.B   #00000010b, &P2IE       ; Diasble P2.1(self) interrupt
+        
+        XOR.B   #00000001b, &P1OUT      ; On/off(toggle) LED1
+        call    #SUBDELAY
+        XOR.B   #00000001b, &P1OUT      ; On/off(toggle) LED1
+        
+        BIC.B   #00000010b, &P2IFG      ; Clean P2 interrupt flag
+        BIS.B   #00000010b, &P2IE       ; Enable P2.1 interrupt
+        RETI                            ; Return from interrupt
+;================================DELAY code==================================
+SUBDELAY:
+        mov.w   #1400,R5                ; 2 cycle
+Delay1: sub     #1 ,R5                  ; 1 cycle
+        mov.w   #350,R6                 ; 2 cycle
+Delay2: sub     #1 ,R6                  ; 1 cycle     
+        cmp     #0,R6                   ; 1 cycle
+        jnz     Delay2                  ; 2 cycle   
+        cmp      #0,R5                  ; 1 cycle
+        jnz     Delay1                  ; 2 cycle
+        ret
+        
+        JMP $                           ; jump to current location '$'    
+        END        
