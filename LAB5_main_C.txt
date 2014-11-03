@@ -1,0 +1,24 @@
+#include "io430.h"
+void led_tra(void);
+void LIBRARY_DELAY(int A);
+int main( void )
+{
+  // Stop watchdog timer to prevent time out reset
+  WDTCTL = WDTPW + WDTHOLD;
+  P1OUT |= 0x00;
+  P1DIR |= 0x01;
+  P1SEL  = 0x00;
+  while(1)
+  {
+    asm("push.w #5");
+    //return address(4 bytes) is also pushed into the stack
+    LIBRARY_DELAY(600);
+    asm("add.w #2, SP");
+    led_tra();
+  }
+
+}
+void led_tra(void)
+{
+    P1OUT ^= 0x01;
+}
