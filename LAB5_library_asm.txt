@@ -1,0 +1,26 @@
+;===============Delay LIBRARY==============
+#include "msp430.h"
+
+PUBLIC  LIBRARY_DELAY
+MIDLOOPS       EQU   130
+SMALLLOOPS     EQU   100 
+RSEG   CODE
+        
+LIBRARY_DELAY: 
+        sub.w #4         ,   SP  ;Create 2-word space for the 2 inner loop counters
+Big:    
+        mov.w #MIDLOOPS   , 2(SP) ;initialize medium loop counter
+Medium: 
+        mov.w #SMALLLOOPS, 0(SP)  ;initialize smallest loop counter
+Small:       
+        dec.w 0(SP)
+        jnz   Small
+        dec.w 2(SP)
+        jnz   Medium
+        dec.w 8(SP)
+        jnz   Big
+        
+        add.w #4, SP            ;Release the space of the medium & small loop counters
+        ret
+        
+        END
