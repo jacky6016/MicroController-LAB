@@ -1,0 +1,55 @@
+#include "msp430.h"                     ; #define controlled include file
+
+        NAME    main                    ; module name
+
+        PUBLIC  main                    ; make the main label vissible
+                                        ; outside this module
+        ORG     0FFFEh
+        DC16    init                    ; set reset vector to 'init' label
+
+        RSEG    CSTACK                  ; pre-declaration of segment
+        RSEG    CODE                    ; place program in 'CODE' segment
+
+init:   MOV     #SFE(CSTACK), SP        ; set up stack
+
+main:   NOP                             ; main program
+        MOV.W   #WDTPW+WDTHOLD,&WDTCTL  ; Stop watchdog timer
+        
+        MOV.W   #0, R5                  ; Lower byte of f(n-2)
+        MOV.W   #0, R6                  ; Higher byte of f(n-2)
+        MOV.W   #1, R7                  ; Lower byte of f(n-1)
+        MOV.W   #0, R8                  ; Higher byte of f(n-1)
+        MOV.W   #0x1000, R11            ; Points to the starting location in memory where the results will be stored
+        
+        MOV.W   R5, 2(R11)              ; Store f0 first
+        MOV.W   R6, 0(R11)
+        
+Fibonacci_Loop:                         ; All the results are viewed as unsigned version
+        
+        ADD.W   #4, R11
+        MOV.W   R7, 2(R11)              ; Store the lower word to memory
+        MOV.W   R8, 0(R11)              ; Store the higher word to memory        
+        
+        MOV.W   R5, R9                  ; R9 and R10 are the lower and higher byte of the temporary variable, respectively
+        MOV.W   R6, R10                 ; temp = f(n-2) + f(n-1)
+        
+        ADD.W   R7, R9                  ; Add the lower word     
+        JNC     _LowerCarryIn           ; Check if there's carry-in for the lower byte
+        ADD.W   #1, R10
+_LowerCarryIn:                                      
+        ADD.W   R8, R10                 ; Add the higher word
+        JNC     _HigherCarryIn          ; Check if there's carry-in for the higher byte. If so, calculation stops
+        JMP     DONE
+_HigherCarryIn:        
+        MOV.W   R7, R5                  ; f(n-2) = f(n-1)                
+        MOV.W   R8, R6
+        
+        MOV.W   R9, R7                  ; temp = f(n-2) 
+        MOV.W   R10,R8
+        
+        JMP     Fibonacci_Loop
+        
+DONE:        
+        JMP $                           ; jump to current location '$'
+                                        ; (endless loop)
+        END
