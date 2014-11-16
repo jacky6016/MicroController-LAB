@@ -36,11 +36,15 @@ Fibonacci_Loop:                         ; All the results are viewed as unsigned
         ADD.W   R7, R9                  ; Add the lower word     
         JNC     _LowerCarryIn           ; Check if there's carry-in for the lower byte
         ADD.W   #1, R10
+        
 _LowerCarryIn:                                      
+
         ADD.W   R8, R10                 ; Add the higher word
         JNC     _HigherCarryIn          ; Check if there's carry-in for the higher byte. If so, calculation stops
         JMP     DONE
+
 _HigherCarryIn:        
+
         MOV.W   R7, R5                  ; f(n-2) = f(n-1)                
         MOV.W   R8, R6
         
