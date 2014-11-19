@@ -1,0 +1,182 @@
+#include "msp430.h"                     ; #define controlled include file
+
+        NAME    main                    ; module name
+
+        PUBLIC  main                    ; make the main label vissible
+                                        ; outside this module
+        ORG     0FFFEh
+        DC16    init                    ; set reset vector to 'init' label
+
+        RSEG    CSTACK                  ; pre-declaration of segment
+        RSEG    CODE                    ; place program in 'CODE' segment
+                                        ; relocatable by different linkers
+init:   MOV     #SFE(CSTACK), SP        ; set up stack
+
+main:   NOP                             ; main program
+        MOV.W   #WDTPW+WDTHOLD,&WDTCTL  ; Stop watchdog timer
+ 
+MOV.W   #0X1000, R12 
+MOV.W   #71, 0(R12)
+MOV.W   #12, 2(R12)
+MOV.W   #21, 4(R12)
+MOV.W   #50, 6(R12)
+MOV.W   #10, 8(R12)
+MOV.W   #31, 10(R12)
+MOV.W   #26, 12(R12)
+MOV.W   #73, 14(R12)
+MOV.W   #0, 16(R12) 
+;================================Register Table=================================
+;Kth_Select
+;       R4: q     R7: r         R10: return value's address (A[q] or A[p])
+;       R5: n     R8: i         R11: return value
+;       R6: p     R9: k         R12: array A's base address   
+;Partition:
+;       R6: p     R10: i               
+;       R7: r     R11: j 
+;       R9: temp  R12: array A's base address  
+;===============================================================================
+FIND_MED:
+CountArraySize:
+        MOV.W   #0, R5                  ; Element counter
+        PUSH.W  R12                     ; Start position of the input array        
+Comparison:
+        CMP     #0, 0(R12)
+        JNZ     NextElement
+        POP.W   R12                     ; Return the stack space
+        MOV.W   #0, R6                  ; p (left boudary of the array for
+        MOV.W   R5, R7                  ;    the partition method)
+        DEC.W   R7                      ; r (right boudary of the array for
+        MOV.W   R5, R8                  ;    the partition method) 
+        RRA.W   R8                      ; floor(n/2)
+        JNC     EVEN_n
+ODD_n:  INC.W   R8                      ; (n is even) i = floor(n/2) - 1 (because array index starts from 0)
+EVEN_n: JMP     Ith_Select              ; (n is odd)  i = floor(n/2)
+NextElement:
+        ADD.W   #2, R12                 ; Address for the next element in the array
+        ADD.W   #1, R5                  ; Counter += 1
+        JMP     Comparison
+
+Ith_Select:       
+        CMP     R6, R7
+        JZ      OneElementLeft     
+        PUSH.W  R4        
+        CALL    #Partition
+        MOV.W   R4, R9                  ; k <- q - p + 1
+        SUB.W   R6, R9
+        ADD.W   #1, R9
+        CMP     R9, R8
+        JZ      ReturnPivot             ; i == k, return pivot value
+        JN      SearchFront             ; i < k
+SearchBack:        
+        MOV.W   R4, R6                  ; p = q + 1
+        ADD.W   #1, R6
+        SUB.W   R9, R8                  ; i = i - k
+        POP.W   R4
+        JMP     Ith_Select                                 
+SearchFront:        
+        MOV.W   R4, R7                  ; r = q - 1
+        SUB.W   #1, R7
+        POP.W   R4
+        JMP     Ith_Select
+OneElementLeft:        
+        MOV.W   R6, R10                 ; Store A[p] to R5
+        RLA.W   R10
+        ADD.W   R12, R10
+        MOV.W   @R10, R11
+        JMP     Done
+ReturnPivot:
+        MOV.W   R4, R10                 ; Store A[q] to R5
+        RLA.W   R10
+        ADD.W   R12, R10
+        MOV.W   @R10, R11
+        POP.W   R4
+        JMP     Done
+        
+Partition:        
+        PUSH.W  R9                      ; Push the values of registers that will be used in this subroutine
+        PUSH.W  R10
+        PUSH.W  R11
+        SUB.W   #4, SP                  ; Create temporary space for swap and index i
+        
+        MOV.W   R7, R9                  ; A[r]'s address at R9
+        RLA.W   R9
+        ADD.W   R12, R9
+        
+        MOV.W   R6, R10                 ; A[i]'s address at R10
+        SUB.W   #1, R10
+        MOV.W   R10, 2(SP)
+        RLA.W   R10
+        ADD.W   R12, R10       
+        
+        MOV.W   R6, R11                 ; A[j]'s address at R11
+        RLA.W   R11
+        ADD.W   R12, R11
+        
+ForLoop:      
+        CMP     0(R11), 0(R9)           ; Check if A[j] <= A[r]
+        JN      SkipSwap
+        ADD.W   #2, R10                 ; If so, swap A[i+1] and A[j]
+        ADD.W   #1, 2(SP)
+        MOV.W   0(R10), 0(SP)
+        MOV.W   0(R11), 0(R10)
+        MOV.W   0(SP), 0(R11)
+SkipSwap:
+        ADD.W   #2, R11
+        CMP     R9, R11
+        JZ      FinishLoop
+        JMP     ForLoop
+FinishLoop:
+        ADD.W   #2, R10                 ; swap A[i+1] and A[r]
+        ADD.W   #1, 2(SP)        
+        MOV.W   0(R10), 0(SP)
+        MOV.W   0(R9), 0(R10)
+        MOV.W   0(SP), 0(R9)
+        MOV.W   2(SP), R4               ; Register for the return value
+        ADD.W   #4, SP
+        POP.W   R11
+        POP.W   R10
+        POP.W   R9
+        RET
+Done:
+        PUSH.W  R6
+        MOV.W   #0, R5
+FirstDigit:    
+        MOV.W   R11, R6
+        AND.W   #0xF000, R6
+FirstDigitLoop:            
+        SUB.W   #0x1000, R6
+        JN      SecondDigit        
+        CLRC
+        DADD.W  #0x4096, R5
+        JMP     FirstDigitLoop
+        
+SecondDigit:
+        MOV.W   R11, R6
+        AND.W   #0x0F00, R6
+SecondDigitLoop:  
+        SUB.W   #0x0100, R6
+        JN      ThirdDigit
+        CLRC
+        DADD.W  #0x0256, R5
+        JMP     SecondDigitLoop
+        
+ThirdDigit:    
+        MOV.W   R11, R6
+        AND.W   #0x00F0, R6
+ThirdDigitLoop:           
+        SUB.W   #0x0010, R6
+        JN      FourthDigit
+        CLRC
+        DADD.W  #0x0016, R5
+        JMP     ThirdDigitLoop
+        
+FourthDigit:   
+        MOV.W   R11, R6
+        AND.W   #0x000F, R6
+        CLRC
+        DADD.W  R6, R5
+
+        POP.W   R6
+        JMP $                           ; jump to current location '$'
+                                        ; (endless loop)
+        END
