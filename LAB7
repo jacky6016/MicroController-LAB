@@ -7,9 +7,9 @@
         ORG     0FFFEh
         DC16    init                    ; set reset vector to 'init' label
 ;=====================Interrupt Service Vectors Setting==================       
-        ORG     ;;;TA0_A1中斷向量?
+        ORG     0xFFEA
         DW      TA0_HND
-        ORG     ;;;TA0_A0中斷向量?
+        ORG    	0xFFE8
         DW      TIME0_A0
 ;===============================Main Program============================= 
         RSEG    CSTACK                  ; pre-declaration of segment
