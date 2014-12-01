@@ -1,0 +1,100 @@
+#include "msp430.h"                     ; #define controlled include file
+
+        NAME    main                    ; module name
+
+        PUBLIC  main                    ; make the main label vissible
+                                        ; outside this module
+        ORG     0FFFEh
+        DC16    init                    ; set reset vector to 'init' label
+;=====================Interrupt Service Vectors Setting==================       
+        ORG     ;;;TA0_A1中斷向量?
+        DW      TA0_HND
+        ORG     ;;;TA0_A0中斷向量?
+        DW      TIME0_A0
+;===============================Main Program============================= 
+        RSEG    CSTACK                  ; pre-declaration of segment
+        RSEG    CODE                    ; place program in 'CODE' segment
+
+init:   MOV     #SFE(CSTACK), SP        ; set up stack
+
+main:   NOP                             ; main program
+        MOV.W   #WDTPW+WDTHOLD,&WDTCTL  ; Stop watchdog timer
+        
+;=============================Set CCR Register=========================== 
+	;;;設定TIMER計數上限為32768
+        MOV.W   #32768, &TA0CCR0        ; Set the timer bound
+	;;;開啟TA0CCTL0的中斷
+        MOV.W   #CCIE,  &TA0CCTL0       ; Set CCIE to 1 (Enable interrupt)
+	;;;設定TIMER的CLOCK SOURCE, 並且清除TIMER, 然後開啟TIMER,設定到TA0CTL
+        MOV.W   #TASSEL_1 + MC_1 + TACLR, &TA0CTL
+        BIS.W   #GIE,SR                 ; Enable general interrupt
+;=================================Overflow===============================
+        MOV.W   #TASSEL_1 + MC_2 + TACLR, &TA0CTL ;
+        MOV.W   #32768, TA0R            ; Set initial counter value 
+        BIS.W   #GIE,SR                 ; Enable general interrupt
+;===============================Set LED1=================================        
+        MOV.B   #00000000b, &P1SEL      ; Choose I/O function, not peripheral module function 
+        MOV.B   #00000001b, &P1DIR      ; 0: INPUT, I: OUTPUT
+        MOV.B   #00000000b, &P1OUT      ;
+;===============================Set LED2=================================        
+        MOV.B   #00000000b, &P4SEL      ; Choose I/O function, not peripheral module function 
+        MOV.B   #10000000b, &P4DIR      ; 0: INPUT, I: OUTPUT
+        MOV.B   #00000000b, &P4OUT      ;        
+        
+        
+LOOP:
+        JMP LOOP                        ; Infinite loop for interrupt
+        
+;=============================ISR Implementation==========================         
+TA0_HND:             
+        ADD     &TA0IV,PC
+        RETI
+;;;下面1~6的HND代表TIME A1的6個中斷VECTOR
+        JMP CCIFG_1_HND
+        JMP CCIFG_2_HND
+        JMP CCIFG_3_HND
+        JMP CCIFG_4_HND
+        JMP CCIFG_5_HND
+        JMP CCIFG_6_HND
+
+TA0IFG_HND:
+        ;;;關上IE
+              
+        ;;;點亮LED2
+        XOR.B   #10000000b, &P4OUT      ; On/off(toggle) LED2
+        
+        ;;;釋放IFG
+        ;;;開啟IE
+        BIS.W   #GIE,SR
+        RETI
+
+;;;下面1~6的HND代表TIME A1的6個中斷VECTOR
+CCIFG_6_HND:
+          RETI
+CCIFG_5_HND:
+          RETI
+CCIFG_4_HND:
+          RETI
+CCIFG_3_HND:
+          RETI
+CCIFG_2_HND:
+          RETI
+CCIFG_1_HND:
+          RETI
+
+
+TIME0_A0:  
+          ;;;關上IE
+	  ;;;點亮LED1
+          XOR.B   #00000001b, &P1OUT      ; On/off(toggle) LED1
+          
+          AND     #填入正確數值,&TA0CCTL0     ;
+          BIS     #0010h, &TA0CCTL0     ; Set CCIE to 1 (Enable interrupt)
+    
+          RETI          
+         
+        
+       
+          JMP $                                  ; jump to current location '$'
+                                                 ; (endless loop)
+          END
