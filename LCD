@@ -1,0 +1,126 @@
+#include "io430.h"
+#include "intrinsics.h"
+
+#define RSPIN (0x10) //RSPIN  0001 0000
+#define RWPIN (0x08) //RWPIN  0000 1000
+#define EPIN  (0x04) //EPIN   0000 0100
+
+unsigned char XPOS=0,YPOS=0;
+void delay(unsigned int t);
+void lcdwaitidle(void);//Wait for the data or signal delay
+void lcdreset();//init the LCD
+void lcdwc(unsigned char c);//Deferent command by c value (DB4~DB7)
+void lcdwd(unsigned char d);//print the word
+void lcdpos(void); //Initial the address of DDRAM
+void lcdstring(unsigned int P , unsigned int Q , unsigned char *s);
+
+//=======define function======================
+//P6.4~P6.7--->D4~D7
+//P1.2--->E P1.3--->RW P1.4--->RS
+//P8.1--->A P8.2--->K
+
+void delay(unsigned int t)
+{
+  unsigned int i,j;
+  for(i=0 ; i<t ; i++)
+    for(j=0 ; j<10 ; j++);
+}
+
+void lcdwaitidle(void)
+{  
+   P6DIR=0x00;
+   P1OUT &=~RSPIN;
+   P1OUT |=RWPIN;
+   P1OUT |=EPIN; 
+   while((P6IN&0x80)==0x80);//1000 0000
+   P1OUT &=~EPIN;
+   P6DIR |=0Xff;
+}
+
+void lcdreset() //init the LCD
+{  
+   delay(150); //delay
+   lcdwc(0x28);//4bit interface, 2-line disp,5*7dots
+   lcdwc(0x08);//disp in
+   lcdwc(0x01);//disp clear
+   lcdwc(0x06);//disp cursor increase
+   lcdwc(0x0C);//disp & cursor on 
+}
+
+void lcdwc(unsigned char c) //Deferent command by c value (DB4~DB7)
+{  
+	lcdwaitidle();
+	P1OUT &= ~RSPIN;
+	P1OUT &= ~RWPIN;
+	P1OUT |= EPIN;
+	P6OUT = c;
+	P1OUT &= ~EPIN;
+	c = (c<<4) & 0xF0;
+	P1OUT |= EPIN;
+	P6OUT = c;
+	P1OUT &= ~EPIN;
+}
+
+void lcdwd(unsigned char d) //print the word
+{ 
+	lcdwaitidle();
+	P1OUT |= RSPIN;
+	P1OUT &= ~RWPIN;
+	P1OUT |= EPIN;
+	P6OUT = d;
+	P1OUT &= ~EPIN;
+	d = (d<<4) & 0xF0;
+	P1OUT |= EPIN;
+	P6OUT = d;
+	P1OUT &= ~EPIN;	
+}
+
+void lcdpos(void) //Initial the address of DDRAM
+{
+  if(YPOS == 0X00)
+  {
+    lcdwc(XPOS|0x80);
+
+  }
+  else if(YPOS == 0x01)
+        {
+          lcdwc((XPOS+0x40)|0x80);
+        }
+}
+
+void lcdstring(unsigned int P , unsigned int Q , unsigned char *s)
+{
+  YPOS = P;
+  
+  for(XPOS=Q ; XPOS<32 ; XPOS++)
+  {
+    lcdpos();
+    lcdwd(*s);
+    s++;
+  }
+}
+//==========END def==============
+
+void main( void )
+{
+  // Stop watchdog timer to prevent time out reset
+  WDTCTL = WDTPW + WDTHOLD;
+  //=============initial LCD=======
+  P8DIR |= BIT1 + BIT2;    //open the LCD black-light
+  P8OUT &= ~BIT2;          //K
+  P8OUT |= BIT1;           //A
+  P6OUT = 0x00;            //initial PIN state
+  P1OUT = 0x00;          
+  P6DIR |= 0xFF;         
+  P1DIR |= 0xFF;          
+  lcdreset();
+  //===========================
+
+  while(1)
+  { 
+    lcdstring(0,4,"Hello World ");	
+    lcdstring(1,0,"We are NEAT LAB ");
+    delay(5000); 
+  }
+}
+
