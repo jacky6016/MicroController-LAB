@@ -1,0 +1,102 @@
+#include "msp430.h"                     ; #define controlled include file
+
+        NAME    main                    ; module name
+
+        PUBLIC  main                    ; make the main label vissible
+                                        ; outside this module
+        ORG     0FFFEh
+        DC16    init                    ; set reset vector to 'init' label
+;=================Timer ISR address declaration================================        
+        ORG    	0xFFE2
+        DW      TA1CC0_HND
+        
+        ORG     0xFFEA
+        DW      TA0CC0_HND
+        
+        ORG     0xFFE8
+        DW      TA0CC1_4_HND
+        
+        RSEG    CSTACK                  ; pre-declaration of segment
+        RSEG    CODE                    ; place program in 'CODE' segment
+
+;================================Register Table=================================
+;       R5: PWM lower bound         R7: breathing light mode bit (enhance/dim)       
+;       R6: PWM upper bound         R8: temporary register
+;===============================================================================
+init:   MOV     #SFE(CSTACK), SP        ; set up stack
+main:   NOP                             ; main program
+        MOV.W   #WDTPW+WDTHOLD,&WDTCTL  ; Stop watchdog timer
+        
+;===============================Register Setting================================        
+        MOV.W   #0, R5
+        MOV.W   #255, R6
+        MOV.W   #1, R7          ; "Enhance" the LED light
+;================================LED Configuration==============================    
+        BIS.B   #BIT0, &P1DIR
+        BIC.B   #BIT0, &P1SEL
+        BIC.B   #BIT0, &P1OUT
+;================================Timer Configuration============================
+        MOV.W   #TASSEL_1 + ID_1 + MC_1 + TACLR, &TA0CTL        ; TA0 for PWM (ACLK + Input divider = 2 + Up mode + Reset TAR, clock divider, count direction)              
+        MOV.W   #255, &TA0CCR0
+        MOV.W   #0, &TA0CCR1                                    ; Starts with duty cycle = 0
+       
+        MOV.W   #TASSEL_1 + ID_1 + MC_1 + TACLR, &TA1CTL        ; TA1 for adjusting duty cycle
+        MOV.W   #511, &TA1CCR0
+;================================Enable Interrupt===============================
+        MOV.W   #CCIE,  &TA1CCTL0                               
+        MOV.W   #CCIE,  &TA0CCTL1
+        MOV.W   #CCIE,  &TA0CCTL0
+        BIS.W   #GIE,SR                                         ; Enable general interrupt
+
+        
+        JMP $                           ; jump to current location '$'
+                                        ; (endless loop)
+                                        
+;==================================Timer ISRs==================================== 
+TA1CC0_HND:         
+        BIC.W   #CCIFG, &TA1CCTL0
+        BIC.W   #CCIE,  &TA1CCTL0
+        CMP     #1, R7
+        JZ      Up
+Down:
+        CMP     &TA0CCR1, R5
+        JGE     Toggle
+        JMP     Check
+Up:        
+        CMP     R6, &TA0CCR1
+        JGE     Toggle
+        JMP     Check
+Toggle:
+        XOR.W   #1, R7
+Check:
+        CMP     #1, R7
+        JN      Dim
+Enhance:        
+        MOV.W   &TA0CCR1, R8
+        ADD.W   #4, R8
+        MOV.W   R8, &TA0CCR1
+        JMP     DONE
+Dim:
+        MOV.W   &TA0CCR1, R8
+        SUB.W   #4, R8
+        MOV.W   R8, &TA0CCR1
+        JMP     DONE
+DONE:   
+        BIS.W   #CCIE,  &TA1CCTL0
+        RETI                                        
+
+TA0CC0_HND:
+        BIC.W   #CCIFG, &TA0CCTL0
+        BIC.W   #CCIE,  &TA0CCTL0
+        BIS.B   #BIT0, &P1OUT
+        BIS.W   #CCIE,  &TA0CCTL0
+        RETI
+   
+TA0CC1_4_HND:
+        BIC.W   #CCIFG,  &TA0CCTL1
+        BIC.W   #CCIE,  &TA0CCTL1
+        BIC.B   #BIT0, &P1OUT
+        BIS.W   #CCIE,  &TA0CCTL1
+        RETI
+        
+        END
