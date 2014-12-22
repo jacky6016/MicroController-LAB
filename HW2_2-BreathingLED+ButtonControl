@@ -50,8 +50,7 @@ main:   NOP                             ; main program
         MOV.B   #00000010b, &P2IES      ; High-to-low transition
 ;================================Timer Configuration============================
         MOV.W   #TASSEL_1 + ID_1 + MC_1 + TACLR, &TA0CTL        ; TA0 for PWM (ACLK + Input divider = 2 + Up mode + Reset TAR, clock divider, count direction)       
-        MOV.W   #OUTMOD_7, &TA0CCTL1                            ; Output is reset when the timer counts to the TA0CCR1 value. 
-                                                                ; It is set when the timer counts to TA0CCR0 value.
+
         MOV.W   #255, &TA0CCR0
         MOV.W   #0, &TA0CCR1                                    ; Starts with duty cycle = 0
        
