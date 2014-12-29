@@ -1,17 +1,19 @@
 #include "io430.h"
 #include <intrinsics.h>
 
+#define	DELAY10ms	40
+
 void main(void)
 {
-	WDTCTL = WDTPW + WDTHOLD;
+	WDTCTL = WDTPW | WDTHOLD;
 	PortsInit();
 	TA0CCTL0 = ;
 	
 	TA0CCR0 = ;
 	
-	TA0CTL = TASSEL_1 + ID_1 + MC_1 + TACLR;
-	TA1CTL = TASSEL_1 + ID_1 + MC_1 + TACLR;
-	TA2CTL = TASSEL_1 + ID_1 + MC_1 + TACLR;
+	TA0CTL = TASSEL_1 | ID_1 | MC_1 | TACLR;
+	TA1CTL = TASSEL_1 | ID_1 | MC_1 | TACLR;
+	TA2CTL = TASSEL_1 | ID_1 | MC_1 | TACLR;
 
 	for(;;)
 	{
@@ -28,9 +30,9 @@ void PortsInit(void)
 __interrupt void TIMER0_A0_VECTOR(void)
 {
 	TA0CCTL0_bit.CCIE = 0;		// Disable interrupt
-	TA0CCTL0_bit.CCIFG = 0;		// Clear any pending interrupt
-
 	
+
+	TA0CCTL0_bit.CCIFG = 0;		// Clear any pending interrupt
 	TA0CCTL0_bit.CCIE = 1;		// Re-enable interrupt
 }
 
