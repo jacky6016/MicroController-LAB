@@ -1,0 +1,282 @@
+#include "msp430.h"                     ; #define controlled include file
+
+        NAME    main                    ; module name
+
+        PUBLIC  main                    ; make the main label vissible
+                                        ; outside this module
+        ORG     0FFFEh
+        DC16    init                    ; set reset vector to 'init' label
+;================================My Interrupts==================================
+        ORG     0xFFEA
+        DW      TA0CC0_HND
+        ORG     0xFFE8
+        DW      TA0CC1_4_HND
+        ORG    	0xFFE2
+        DW      TA1CC0_HND
+        ORG     0xFFDC
+        DW      UART_ISR
+        ORG     0xFFD8
+        DW      TA2CC0_HND 
+        ORG     0xFFD4
+        DW      P2_ISR		
+;===============================================================================        
+        RSEG    CSTACK                  ; pre-declaration of segment
+        RSEG    CODE                    ; place program in 'CODE' segment
+		
+;================================Register Table=================================
+;       R5: PWM lower bound                             R9: Indicates whether LED2 is twinkling or not
+;       R6: PWM upper bound                             R10: 
+;       R7: breathing light mode bit (enhance/dim)      R11: 
+;       R8: temporary register
+;===============================================================================
+init:   MOV     #SFE(CSTACK), SP        ; set up stack
+main:   NOP                             ; main program
+        MOV.W   #WDTPW+WDTHOLD,&WDTCTL  ; Stop watchdog timer
+        
+;===============================Set Registers===================================        
+        MOV.W   #0, R5
+        MOV.W   #255, R6
+        MOV.W   #1, R7                  ; "Enhance" the LED light
+        MOV.W   #0, R9
+;================================Set LED1=======================================    
+        BIC.B   #BIT0, &P1OUT
+        BIS.B   #BIT0, &P1DIR
+        BIC.B   #BIT0, &P1SEL
+;===============================Set LED2=================================        
+        MOV.B   #00000000b, &P4SEL      ; Choose I/O function, not peripheral module function 
+        MOV.B   #10000000b, &P4DIR      ; 0: INPUT, I: OUTPUT
+        MOV.B   #00000000b, &P4OUT      ;
+;==============================Set Button2================================        
+        MOV.B   #00000000b, &P2SEL      ; Choose I/O function, not peripheral module function 
+        MOV.B   #00000000b, &P2DIR      ; 0: INPUT, I: OUTPUT
+        MOV.B   #00000010b, &P2REN      ; Enable pull up/down register(for accuracy)
+        MOV.B   #00000010b, &P2OUT      ; must come after REN
+        MOV.B   #00000010b, &P2IES      ; High-to-low transition
+;================================UART Configuration=============================	
+        BIS.B	#BIT4,  &P4SEL			; P4.4,5 = USCI_A0 TXD/RXD
+        BIS.B	#BIT5,  &P4SEL
+        BIS.B 	#UCSWRST, &UCA1CTL1		; Put state machine in reset
+        BIS.B	#UCSSEL0, &UCA1CTL1		; CLK = SMCLK
+        BIS.B	#UCSSEL1, &UCA1CTL1
+;=============================set the baud-rate register========================
+        MOV.B   #0x6D, &UCA1BR0
+        MOV.B   #0x00, &UCA1BR1
+        MOV.B   #0x02, &UCA1MCTL                ; Initialize USCI state machine
+        BIC.B   #UCSWRST, &UCA1CTL1
+        BIS.B   #UCRXIE,  &UCA1IE
+;================================Timer Configuration============================
+        MOV.W   #TASSEL_1 + ID_1 + MC_1 + TACLR, &TA0CTL        ; TA0 for PWM (ACLK + Input divider = 2 + Up mode + Reset TAR, clock divider, count direction)
+        MOV.W   #255, &TA0CCR0
+        MOV.W   #0, &TA0CCR1                                    ; Starts with duty cycle ~ 0
+       
+        MOV.W   #TASSEL_1 + ID_1 + MC_1 + TACLR, &TA1CTL        ; TA1 for adjusting duty cycle
+        MOV.W   #255, &TA1CCR0
+        
+        MOV.W   #TASSEL_1 + ID_3 + MC_1 + TACLR, &TA2CTL        ; TA2 for displaying PWM value by UART
+        MOV.W   #1023, &TA2CCR0        
+;==============================Clear Interrupt Flags============================ 
+        BIC.B   #BIT1,  &P2IE
+        BIC.W   #CCIFG, &TA0CCTL1
+        BIC.W   #CCIFG, &TA0CCTL0
+        BIC.W   #CCIFG, &TA1CCTL0
+        BIC.W   #CCIFG, &TA2CCTL0
+;===============================Enable interrupts=============================== 
+        MOV.W   #CCIE,  &TA0CCTL1
+        MOV.W   #CCIE,  &TA0CCTL0
+        MOV.W   #CCIE,  &TA2CCTL0                               
+        MOV.B   #BIT1,  &P2IE                                   ; Enable P2.1 interrupt
+        BIS.W   #GIE,   SR                                      ; Enable general interrupt
+
+             
+LED2_TWINKLE:
+        CMP     #0, R9
+        JZ      Skip
+        XOR.B   #BIT7, &P4OUT      ; On/off(toggle) LED2
+        call    #SUBDELAY
+Skip:
+        JMP     LED2_TWINKLE
+        
+        JMP $                           ; jump to current location '$'
+                                        ; (endless loop)
+                                        
+;==================================Timer ISRs==================================== 
+TA1CC0_HND:         
+        BIC.W   #CCIFG, &TA1CCTL0
+        BIC.W   #CCIE,  &TA1CCTL0
+        CMP     #0, R7
+        JZ      Up
+Down:
+        CMP     &TA0CCR1, R5
+        JGE     Stop
+        JMP     Check
+Up:        
+        CMP     R6, &TA0CCR1
+        JGE     Stop
+        JMP     Check
+
+        
+Check:
+        CMP     #0, R7
+        JZ      Enhance
+
+Dim:
+        SUB.W   #1, &TA0CCR1
+        JMP     DONE
+Enhance:        
+        ADD.W   #1, &TA0CCR1
+        JMP     DONE
+        
+DONE:   
+        BIS.W   #CCIE,  &TA1CCTL0
+        RETI                                        
+
+Stop:
+        BIC.W   #CCIE,  &TA1CCTL0
+        RETI
+
+TA0CC0_HND:
+        BIC.W   #CCIFG, &TA0CCTL0
+        BIC.W   #CCIE,  &TA0CCTL0
+        BIS.B   #BIT0, &P1OUT
+        BIS.W   #CCIE,  &TA0CCTL0
+        RETI
+   
+TA0CC1_4_HND:
+        BIC.W   #CCIFG,  &TA0CCTL1
+        BIC.W   #CCIE,  &TA0CCTL1
+        BIC.B   #BIT0, &P1OUT
+        BIS.W   #CCIE,  &TA0CCTL1
+        RETI                       
+;==================================Button2 ISR==================================
+P2_ISR:
+        BIC.B   #00000010b, &P2IE       ; Diasble P2.1(self) interrupt
+        BIC.W   #CCIE,  &TA1CCTL0       ; Diasble timer interrupt
+        BIC.W   #CCIE,  &TA0CCTL0
+        BIC.W   #CCIE,  &TA0CCTL1
+        CMP.W   #0, R9
+        JNZ     BitBeenSet
+        MOV.W   #1, R9
+        BIC.B   #BIT0, &P1OUT           ; Turn off LED1
+        JMP     Finish
+BitBeenSet:        
+        MOV.W   #0, R9
+        BIC.B   #BIT7, &P4OUT
+        MOV.W   #0, &TA0CCR1
+        BIS.W   #CCIE,  &TA1CCTL0       ; Enable timer interrupt
+        BIS.W   #CCIE,  &TA0CCTL0
+        BIS.W   #CCIE,  &TA0CCTL1
+Finish: 
+        BIC.B   #00000010b, &P2IFG      ; Clean P2 interrupt flag
+        BIS.B   #00000010b, &P2IE       ; Enable P2.1 interrupt
+        RETI                            ; Return from interrupt
+;=================================UART Input====================================
+UART_ISR:
+        MOV.W   #0, R7
+        CMP     #2, &UCA1IV
+        JNZ     UART_ISR_DONE
+      
+        MOV.B   &UCA1RXBUF, R7  
+        BIC.B   #UCRXIFG, UCA1IFG
+        SUB.W   #48, R7
+        MOV.W   #CCIE,  &TA1CCTL0 
+UART_ISR_DONE:
+        RETI
+;=================================UART Output===================================
+TA2CC0_HND:
+        BIC.W   #CCIFG, &TA2CCTL0
+        BIC.W   #CCIE,  &TA2CCTL0        
+        
+        MOV.W   &TA0CCR1, R8
+        MOV.W   #0, R4
+        
+FirstDigit:         
+        SUB.W   #0x0010, R8
+        JN      SecondDigit
+        CLRC
+        DADD.W  #0x0016, R4
+        JMP     FirstDigit
+        
+SecondDigit:   
+        ADD.W   #0x0010, R8
+        CMP     #10, R8
+        JN      SkipCarry
+        CLRC
+        DADD.W  #0x0010, R4
+        SUB.W   #10, R8
+SkipCarry:
+        CLRC
+        DADD.W  R8, R4
+        
+UART_print:
+
+PrintDigit1:
+        MOV.W   R4, R8
+        AND.W   #0x0F00, R8
+        RRA.W   R8
+        RRA.W   R8
+        RRA.W   R8
+        RRA.W   R8
+        RRA.W   R8
+        RRA.W   R8
+        RRA.W   R8
+        RRA.W   R8
+        CMP     #0, R8
+        JZ      PrintDigit2
+        ADD.W   #48, R8
+No_Int_Pedning1:
+        BIT.B   #BIT1, UCA1IFG          ; Check if UCTXIFG is set
+        JZ      No_Int_Pedning1        
+        MOV.B   R8, &UCA1TXBUF
+
+PrintDigit2:
+        MOV.W   R4, R8
+        AND.W   #0x00F0, R8
+        RRA.W   R8
+        RRA.W   R8
+        RRA.W   R8
+        RRA.W   R8
+        CMP     #0, R8
+        JZ      PrintDigit3
+        ADD.W   #48, R8
+No_Int_Pedning2:
+        BIT.B   #BIT1, UCA1IFG          ; Check if UCTXIFG is set
+        JZ      No_Int_Pedning2        
+        MOV.B   R8, &UCA1TXBUF
+        
+PrintDigit3:
+        MOV.W   R4, R8
+        AND.W   #0x000F, R8
+        ADD.W   #48, R8
+No_Int_Pedning3:
+        BIT.B   #BIT1, UCA1IFG          ; Check if UCTXIFG is set
+        JZ      No_Int_Pedning3        
+        MOV.B   R8, &UCA1TXBUF
+
+No_Int_Pedning4:
+        BIT.B   #BIT1, UCA1IFG          ; Check if UCTXIFG is set
+        JZ      No_Int_Pedning4        
+        MOV.B   #10, &UCA1TXBUF         ; '\n'
+        
+No_Int_Pedning5:
+        BIT.B   #BIT1, UCA1IFG          ; Check if UCTXIFG is set
+        JZ      No_Int_Pedning5        
+        MOV.B   #13, &UCA1TXBUF         ; '\r'
+		
+        BIS.W   #CCIE,  &TA2CCTL0
+        RETI
+
+;================================DELAY code==================================
+SUBDELAY:
+        SUB.W   #4, SP
+        mov.w   #350, 0(SP)     ; 2 cycle
+Delay1: sub     #1, 0(SP)       ;1 cycle
+        mov.w   #250, 2(SP)     ; 2 cycle
+Delay2: sub     #1, 2(SP)       ; 1 cycle     
+        cmp     #0, 2(SP)       ; 1 cycle
+        jnz     Delay2          ; 2 cycle   
+        cmp     #0, 0(SP)       ; 1 cycle
+        jnz     Delay1          ; 2 cycle
+        ADD.W   #4, SP
+        ret
+        
+        END
