@@ -1,0 +1,89 @@
+#include "io430.h"
+#include <intrinsics.h>
+
+void main(void)
+{
+	WDTCTL = WDTPW + WDTHOLD;
+
+
+
+
+}
+
+#pragma vector = TIMER0_A0_VECTOR
+__interrupt void TIMER0_A0_VECTOR(void)
+{
+
+
+}
+
+#pragma vector = TIMER0_A1_VECTOR
+__interrupt void TIMER0_A1_VECTOR(void)
+{
+	switch( __even_in_range(TAIV, ) )
+	{
+		case 0:				/* No interrupt pending */
+			break;
+		
+		case TA0IV_CCIFG1:	
+		
+			break;
+		
+		case TA0IV_CCIFG2:
+		
+			break;
+		
+		case TA0IV_CCIFG3:
+		
+			break;
+		
+		case TA0IV_CCIFG4:
+		
+			break;
+		
+		case TA0IV_CCIFG5:
+		
+			break;
+		
+		case TA0IV_CCIFG6:
+		
+			break;
+		
+		case TA0IV_TAIFG:
+		
+			break;
+			
+		default:
+			for(;;)
+			{}
+			
+	}
+}
+
+#pragma vector = TIMER1_A0_VECTOR
+__interrupt void TIMER1_A0_VECTOR(void)
+{
+
+
+}
+
+#pragma vector = TIMER1_A1_VECTOR
+__interrupt void TIMER1_A1_VECTOR(void)
+{
+
+
+}
+
+#pragma vector = TIMER2_A0_VECTOR
+__interrupt void TIMER2_A0_VECTOR(void)
+{
+
+
+}
+
+#pragma vector = TIMER2_A1_VECTOR
+__interrupt void TIMER2_A1_VECTOR(void)
+{
+
+
+}
