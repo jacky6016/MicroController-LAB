@@ -4,7 +4,7 @@
 void main(void)
 {
 	WDTCTL = WDTPW + WDTHOLD;
-	
+	PortsInit();
 	TA0CCTL0 = ;
 	
 	TA0CCR0 = ;
@@ -13,13 +13,25 @@ void main(void)
 	TA1CTL = TASSEL_1 + ID_1 + MC_1 + TACLR;
 	TA2CTL = TASSEL_1 + ID_1 + MC_1 + TACLR;
 
+	for(;;)
+	{
+		__low_power_mode_3();
+	}
+}
+
+void PortsInit(void)
+{
+
 }
 
 #pragma vector = TIMER0_A0_VECTOR
 __interrupt void TIMER0_A0_VECTOR(void)
 {
+	TA0CCTL0_bit.CCIE = 0;		// Disable interrupt
 	TA0CCTL0_bit.CCIFG = 0;		// Clear any pending interrupt
 
+	
+	TA0CCTL0_bit.CCIE = 1;		// Re-enable interrupt
 }
 
 #pragma vector = TIMER0_A1_VECTOR
