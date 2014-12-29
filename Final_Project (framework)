@@ -5,11 +5,11 @@
 
 void main(void)
 {
-	WDTCTL = WDTPW | WDTHOLD;
-	PortsInit();
-	TA0CCTL0 = ;
+	WDTCTL = WDTPW | WDTHOLD;       // Stop watchdog timer to prevent time out reset
+	//PortsInit();
+	//TA0CCTL0 = ;
 	
-	TA0CCR0 = ;
+	//TA0CCR0 = ;
 	
 	TA0CTL = TASSEL_1 | ID_1 | MC_1 | TACLR;
 	TA1CTL = TASSEL_1 | ID_1 | MC_1 | TACLR;
@@ -27,7 +27,7 @@ void PortsInit(void)
 }
 
 #pragma vector = TIMER0_A0_VECTOR
-__interrupt void TIMER0_A0_VECTOR(void)
+__interrupt void TA0CC0_ISR(void)
 {
 	TA0CCTL0_bit.CCIE = 0;		// Disable interrupt
 	
@@ -37,35 +37,33 @@ __interrupt void TIMER0_A0_VECTOR(void)
 }
 
 #pragma vector = TIMER0_A1_VECTOR
-__interrupt void TIMER0_A1_VECTOR(void)
+__interrupt void TA0CC1_4_ISR(void)
 {
-	switch( __even_in_range(TAIV, 14) )
+	switch( __even_in_range(TA0IV, 14) )
 	{
-		case 0:				/* No interrupt pending */
+		case TA0IV_NONE:        /* No interrupt pending */
 			break;
 		
-		case TA0IV_CCIFG1:	
-		
-			break;
-		
-		case TA0IV_CCIFG2:
+		case TA0IV_TACCR1:	
 		
 			break;
 		
-		case TA0IV_CCIFG3:
+		case TA0IV_TACCR2:
 		
 			break;
 		
-		case TA0IV_CCIFG4:
+		case TA0IV_TACCR3:
 		
 			break;
 		
-		case TA0IV_CCIFG5:
+		case TA0IV_TACCR4:
 		
 			break;
 		
-		case TA0IV_CCIFG6:
+		case TA0IV_5:		
+			break;
 		
+		case TA0IV_6:		
 			break;
 		
 		case TA0IV_TAIFG:
@@ -80,29 +78,95 @@ __interrupt void TIMER0_A1_VECTOR(void)
 }
 
 #pragma vector = TIMER1_A0_VECTOR
-__interrupt void TIMER1_A0_VECTOR(void)
+__interrupt void TA1CC0_ISR(void)
 {
 
 
 }
 
 #pragma vector = TIMER1_A1_VECTOR
-__interrupt void TIMER1_A1_VECTOR(void)
+__interrupt void TA1CC1_2_ISR(void)
 {
-
+	switch( __even_in_range(TA1IV, 14) )
+	{
+		case TA1IV_NONE:        /* No interrupt pending */
+			break;
+		
+		case TA1IV_TACCR1:	
+		
+			break;
+		
+		case TA1IV_TACCR2:
+		
+			break;
+		
+		case TA1IV_3:		
+			break;
+		
+		case TA1IV_4:		
+			break;
+		
+		case TA1IV_5:		
+			break;
+		
+		case TA1IV_6:		
+			break;
+		
+		case TA1IV_TAIFG:
+		
+			break;
+			
+		default:
+			for(;;)
+			{}
+			
+	}
 
 }
 
 #pragma vector = TIMER2_A0_VECTOR
-__interrupt void TIMER2_A0_VECTOR(void)
+__interrupt void TA2CC0_ISR(void)
 {
 
 
 }
 
 #pragma vector = TIMER2_A1_VECTOR
-__interrupt void TIMER2_A1_VECTOR(void)
+__interrupt void TA2CC1_4_ISR(void)
 {
-
+	switch( __even_in_range(TA2IV, 14) )
+	{
+		case TA2IV_NONE:        /* No interrupt pending */
+			break;
+		
+		case TA2IV_TACCR1:	
+		
+			break;
+		
+		case TA2IV_TACCR2:
+		
+			break;
+		
+		case TA2IV_3:		
+			break;
+		
+		case TA2IV_4:		
+			break;
+		
+		case TA2IV_5:		
+			break;
+		
+		case TA2IV_6:		
+			break;
+		
+		case TA2IV_TAIFG:
+		
+			break;
+			
+		default:
+			for(;;)
+			{}
+			
+	}
 
 }
