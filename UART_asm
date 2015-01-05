@@ -1,0 +1,53 @@
+#include "msp430.h"                     ; #define controlled include file
+
+        NAME    main                    ; module name
+
+        PUBLIC  main                    ; make the main label vissible
+                                        ; outside this module
+        ORG     0FFFEh
+        DC16    init                    ; set reset vector to 'init' label
+       
+        ORG     0xFFDC
+        DW      UART_ISR
+        
+        RSEG    CSTACK                  ; pre-declaration of segment
+        RSEG    CODE                    ; place program in 'CODE' segment
+
+init:   MOV     #SFE(CSTACK), SP        ; set up stack
+
+main:   NOP                             ; main program
+        MOV.W   #WDTPW+WDTHOLD,&WDTCTL  ; Stop watchdog timer
+        
+;================================UART Configuration=============================	
+        BIS.B	#BIT4,  &P4SEL			; P4.4,5 = USCI_A0 TXD/RXD
+        BIS.B	#BIT5,  &P4SEL
+        BIS.B 	#UCSWRST, &UCA1CTL1		; Put state machine in reset
+        BIS.B	#UCSSEL0, &UCA1CTL1		; CLK = SMCLK
+        BIS.B	#UCSSEL1, &UCA1CTL1
+;=============================set the baud-rate register========================
+        MOV.B   #0x6D, &UCA1BR0
+        MOV.B   #0x00, &UCA1BR1
+        MOV.B   #0x02, &UCA1MCTL                ; Initialize USCI state machine
+        BIC.B   #UCSWRST, &UCA1CTL1
+        BIS.B   #UCRXIE, &UCA1IE                ; Enable USCI_A0 RX interrupt
+        BIS.W   #GIE,   SR  
+        
+        JMP $                           ; jump to current location '$'
+                                        ; (endless loop)
+                                        
+;=================================UART ISR======================================
+UART_ISR:
+        CMP     #2, &UCA1IV
+        JNE     NoDataIn
+No_Int_Pedning1:
+        BIT.B   #BIT1, UCA1IFG          ; Check if UCTXIFG is set
+        JZ      No_Int_Pedning1
+        MOV.B   &UCA1RXBUF, &UCA1TXBUF
+No_Int_Pedning2:
+        BIT.B   #BIT1, UCA1IFG          ; Check if UCTXIFG is set
+        JZ      No_Int_Pedning2
+        MOV.B   #13, &UCA1TXBUF
+NoDataIn:
+        RETI
+        
+        END
